@@ -1,11 +1,11 @@
 import { Router } from "express";
 import prisma from "../prisma";
-import allowCredentials from "../../middleware/allowCredentials";
 import { supabase } from "../supabase";
+import verifyAuth from "../../middleware/verifyAuth";
 
 const router = Router();
 
-router.post('/getUserHistory', allowCredentials, async (req, res) => {
+router.post('/getUserHistory', verifyAuth, async (req, res) => {
     const { userId } = req.body;
     const userHistory = await prisma.video.findMany({
         where: {
@@ -22,7 +22,7 @@ router.post('/getUserHistory', allowCredentials, async (req, res) => {
     res.status(200).json({ userHistory });
 });
 
-router.post('/getChatHistory', allowCredentials, async (req, res) => {
+router.post('/getChatHistory', verifyAuth, async (req, res) => {
     const { userId, videoId } = req.body;
     console.log(userId, videoId);
     const chatHistory = await prisma.video.findFirst({
