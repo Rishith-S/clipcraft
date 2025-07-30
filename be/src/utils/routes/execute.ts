@@ -3,12 +3,12 @@ import redis from '../redis';
 import { QueueObject } from '../types';
 import processQueue from '../queueReader';
 import { addSSEConnection, removeSSEConnection } from '../sse';
-import allowCredentials from '../../middleware/allowCredentials';
 import prisma from '../prisma';
+import verifyAuth from '../../middleware/verifyAuth';
 
 const router = express.Router();
 
-router.post('/getVideoId', allowCredentials, async (req, res) => {
+router.post('/getVideoId', verifyAuth, async (req, res) => {
     const { userId } = req.body;
     
     // Count existing videos for this user
@@ -45,7 +45,7 @@ router.post('/getVideoId', allowCredentials, async (req, res) => {
     return;
 });
 
-router.post('/videoPrompt', allowCredentials, async (req, res) => {
+router.post('/videoPrompt', verifyAuth, async (req, res) => {
     const {userPrompt,userId,videoId,type} = req.body;
     const queueObject : QueueObject = {
         userId,
@@ -60,7 +60,7 @@ router.post('/videoPrompt', allowCredentials, async (req, res) => {
     return;
 });
 
-router.get('/job-events/:userId/:videoId', allowCredentials,(req, res) => {
+router.get('/job-events/:userId/:videoId', verifyAuth,(req, res) => {
     const { videoId, userId } = req.params;
     // Set SSE headers
     res.writeHead(200, {

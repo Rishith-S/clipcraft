@@ -32,24 +32,20 @@ export default function Auth() {
 
         const timeout = setTimeout(() => {
             if (!isDeleting) {
-                // Typing forward
                 if (currentText.length < currentFullText.length) {
                     setCurrentText(currentFullText.substring(0, currentText.length + 1));
                 } else {
-                    // Finished typing, wait then start deleting
                     setTimeout(() => setIsDeleting(true), 1500);
                 }
             } else {
-                // Backspacing
                 if (currentText.length > 0) {
                     setCurrentText(currentText.substring(0, currentText.length - 1));
                 } else {
-                    // Finished deleting, move to next text
                     setIsDeleting(false);
                     setCurrentTextIndex((prev) => (prev + 1) % texts.length);
                 }
             }
-        }, 20); // Faster backspacing
+        }, 20);
 
         return () => clearTimeout(timeout);
     }, [currentText, isDeleting, currentTextIndex, texts]);
@@ -103,7 +99,6 @@ export default function Auth() {
         setError("");
         try {
           const response = (await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/v1/auth/url/${loginOrSignup ? "login" : "signup"}`)) as any;
-          // OAuth requires redirect to external domain, so page refresh is necessary
           window.location.assign(response.data.url);
         } catch (error: any) {
           console.log(error);
@@ -123,7 +118,6 @@ export default function Auth() {
         setError("");
         try {
           const response = (await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/v1/auth/github/url/${loginOrSignup ? "login" : "signup"}`)) as any;
-          // OAuth requires redirect to external domain, so page refresh is necessary
           window.location.assign(response.data.url);
         } catch (error: any) {
           console.log(error);
@@ -140,17 +134,14 @@ export default function Auth() {
 
     return (
         <div className="min-h-screen flex bg-gray-75">
-            {/* Left side - Form */}
             <div className="w-full md:w-1/2 bg-gray-75 flex items-center justify-center p-8">
                 <div className="w-full max-w-md">
-                    {/* Title */}
                     <div className='mb-8'>
                         <p className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-tr from-orange-400 via-pink-400 to-purple-400 font-playful">
                             ClipCraft
                         </p>
                     </div>
                     <p className="text-white text-3xl font-bold mb-8">{loginOrSignup ? "Login" : "Sign Up"}</p>
-                    {/* Social buttons */}
                     <div className="space-y-3 mb-6">
                         <button
                             className="w-full bg-gray-50 hover:bg-gray-800 border border-gray-25 rounded-lg py-1.5 px-4 text-white flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -170,21 +161,17 @@ export default function Auth() {
                         </button>
                     </div>
 
-                    {/* OR divider */}
                     <div className="flex items-center mb-6">
                         <div className="flex-1 h-px bg-gray-200/10"></div>
                         <span className="px-4 text-gray-200/75 text-sm">OR</span>
                         <div className="flex-1 h-px bg-gray-200/10"></div>
                     </div>
 
-                    {/* Error message */}
                     {error && (
                         <div className="mb-4 text-red-400 text-center text-sm font-medium">{error}</div>
                     )}
 
-                    {/* Email/Password Form */}
                     <form onSubmit={handleEmailLogin}>
-                        {/* Email field */}
                         {
                             type==='signup' && (
                                 <div className="mb-4">
@@ -197,19 +184,16 @@ export default function Auth() {
                             <InputBox value={email} setValue={setEmail} type="text" label='Email' disabled={isLoading} />
                         </div>
 
-                        {/* Password field */}
                         <div className="mb-6">
                             <InputBox value={password} setValue={setPassword} type="password" label='Password' disabled={isLoading} />
                         </div>
 
-                        {/* Turnstile */}
                         <Turnstile 
                             key={type} 
                             onSuccess={(token)=>{setToken(token)}} 
                             siteKey={`${import.meta.env.VITE_TURNSTILE_SITEKEY}`} 
                         />
 
-                        {/* Sign up/login button */}
                         <button
                             type="submit"
                             className="w-full bg-white text-black font-medium py-2 rounded-lg mb-6 hover:bg-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -223,7 +207,6 @@ export default function Auth() {
                         </button>
                     </form>
 
-                    {/* Footer links */}
                     <div className="text-center space-y-4">
                         <p className="text-gray-400 text-sm">
                             Don't have an account? <span onClick={() => { navigate(`/auth/${loginOrSignup ? "signup" : "login"}`, { replace: true })  }} className="text-white underline cursor-pointer">{loginOrSignup ? "Sign Up" : "Login"}</span>
@@ -232,9 +215,7 @@ export default function Auth() {
                 </div>
             </div>
 
-            {/* Right side - Gradient background with chat bubble */}
             <div className="w-0 md:w-1/2 m-6 relative hidden md:flex items-center justify-center">
-                {/* Chat bubble */}
                 <div className="bg-[url('/src/assets/image.webp')] rounded-lg w-full h-full bg-cover absolute" />
                 <div className="absolute w-full px-24">
                     <div className="bg-white rounded-2xl flex flex-row justify-between items-center px-6 py-4">
