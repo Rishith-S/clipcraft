@@ -6,10 +6,13 @@ import chatHistoryRouter from './utils/routes/chatHistory';
 import executeRouter from './utils/routes/execute';
 import rateLimit from 'express-rate-limit';
 
+import cookieParser from 'cookie-parser';
+
 const app = express();
 
 dotenv.config();
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 
 const rateLimiter = rateLimit({

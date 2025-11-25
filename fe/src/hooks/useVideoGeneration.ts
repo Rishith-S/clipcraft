@@ -31,13 +31,13 @@ export const useVideoGeneration = (userId: string, videoId: string) => {
                     eventSource.close();
                     return;
                 }
-                
+
                 if (safeData.status === "close") {
                     setLoading(false);
                     eventSource.close();
                     return;
                 }
-                
+
                 setPromptData(prev => {
                     const lastPrompt = prev[prev.length - 1];
                     const updatedLastPrompt = {
@@ -86,7 +86,8 @@ export const useVideoGeneration = (userId: string, videoId: string) => {
                 eventSourceRef.current.close();
             }
             const es = new EventSource(
-                `${import.meta.env.VITE_SERVER_URL}/api/v1/execute/job-events/${userId}/${videoId}`
+                `${import.meta.env.VITE_SERVER_URL}/api/v1/execute/job-events/${userId}/${videoId}`,
+                { withCredentials: true }
             );
             eventSourceRef.current = es;
             handleEventSource(es);

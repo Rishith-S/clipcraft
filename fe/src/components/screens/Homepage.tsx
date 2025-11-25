@@ -90,17 +90,22 @@ Use different colors for each box and add simple fade-in animation.`,
             // Only fetch history if user is authenticated
             const accessToken = localStorage.getItem('accessToken');
             const email = localStorage.getItem('email');
-            
+
             if (!accessToken || !email) {
                 setLoading(false);
                 return;
             }
-            
+
             try {
                 setLoading(true);
                 const res = await axios.post(`${import.meta.env.VITE_SERVER_URL}/api/v1/chatHistory/getUserHistory`, {
                     userId: localStorage.getItem('email'),
-                }, { withCredentials: true });
+                }, {
+                    withCredentials: true,
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                    },
+                });
                 setUserHistory((res.data as { userHistory: Video[] }).userHistory);
             } catch (error) {
                 console.error('Error fetching user history:', error);
@@ -143,13 +148,13 @@ Use different colors for each box and add simple fade-in animation.`,
             // Check if user is authenticated
             const accessToken = localStorage.getItem('accessToken');
             const email = localStorage.getItem('email');
-            
+
             if (!accessToken || !email) {
                 // User is not authenticated, redirect to login
                 navigate('/auth/login');
                 return;
             }
-            
+
             try {
                 localStorage.setItem("prompt", inputValue);
                 const res = await axios.post(`${import.meta.env.VITE_SERVER_URL}/api/v1/execute/getVideoId`, {
@@ -158,6 +163,7 @@ Use different colors for each box and add simple fade-in animation.`,
                     withCredentials: true,
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`,
                     },
                 });
 
@@ -186,13 +192,13 @@ Use different colors for each box and add simple fade-in animation.`,
         // Check if user is authenticated
         const accessToken = localStorage.getItem('accessToken');
         const email = localStorage.getItem('email');
-        
+
         if (!accessToken || !email) {
             // User is not authenticated, redirect to login
             navigate('/auth/login');
             return;
         }
-        
+
         setInputValue(example.prompt);
         setIsModalOpen(false);
         setSelectedExample(null);
@@ -337,7 +343,7 @@ Use different colors for each box and add simple fade-in animation.`,
 
                             <div className='text-center py-8'>
                                 <p className='text-gray-300 text-lg mb-4'>Login to create and save your animations</p>
-                                <button 
+                                <button
                                     onClick={() => navigate('/auth/login')}
                                     className='bg-white text-black px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium'
                                 >

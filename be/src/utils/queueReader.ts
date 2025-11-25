@@ -1,5 +1,6 @@
-import { Mistral } from '@mistralai/mistralai';
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 // import OpenAI from 'openai';
+import { OpenRouter } from "@openrouter/sdk";
 import { Redis } from "@upstash/redis";
 import { exec } from "child_process";
 import * as fs from "fs/promises";
@@ -33,6 +34,10 @@ function isCodeSafe(code: string): boolean {
     return !bannedPatterns.some((pattern) => pattern.test(code));
 }
 
+const openRouter = new OpenRouter({
+    apiKey: process.env.OPENROUTER_API_KEY ?? "", // Ensure API key is loaded
+});
+
 
 export default async function processQueue() {
     if (isProcessing) {
@@ -48,8 +53,8 @@ export default async function processQueue() {
                 if (!promptDetails) {
                     break;
                 }
-                const apiKey = process.env.MISTRAL_API_KEY;
-                const client = new Mistral({ apiKey: apiKey });
+                // const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+                // const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
                 // const apiKey = process.env.OPENAI_API_KEY;
                 // const client = new OpenAI({ apiKey: apiKey });
                 let prompt = getPrompt(promptDetails.userPrompt);
@@ -59,7 +64,7 @@ export default async function processQueue() {
                         videoId: parseInt(promptDetails.videoId),
                     },
                 })
-                
+
                 // Check if user has exceeded the maximum number of videos (5) only when creating a new video
                 if (!video) {
                     const userVideoCount = await prisma.video.count({
@@ -67,54 +72,60 @@ export default async function processQueue() {
                             userId: promptDetails.userId,
                         },
                     });
-                    
+
                     if (userVideoCount >= 5) {
-                        notifySSEClients(promptDetails.userId, promptDetails.videoId, { 
-                            status: 'error', 
-                            errormessage: "Video limit exceeded. Maximum 5 videos allowed per user." 
+                        notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+                            status: 'error',
+                            errormessage: "Video limit exceeded. Maximum 5 videos allowed per user."
                         });
                         return;
                     }
                 }
-                
+
                 // Check if prompt limit exceeded (max 5 prompts per video)
                 if (video && video.prompt.length >= 5) {
-                    notifySSEClients(promptDetails.userId, promptDetails.videoId, { 
-                        status: 'error', 
-                        errormessage: "Prompt limit exceeded. Maximum 5 prompts allowed per video." 
+                    notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+                        status: 'error',
+                        errormessage: "Prompt limit exceeded. Maximum 5 prompts allowed per video."
                     });
                     return;
                 }
-                
+
                 if (video) {
                     prompt += `\n\nThe user has already created a video with the same prompt. Please edit the video to the user's request. The user's previous prompt was ${JSON.stringify(video.prompt)}`;
                 }
                 try {
-                    const chatResponse = await client.chat.complete({
-                        model: 'mistral-large-latest',
+                    const result = await openRouter.chat.send({
                         messages: [{ role: 'user', content: prompt }],
+                        model: "x-ai/grok-4.1-fast",
+                        stream: true,
+                        streamOptions: {
+                            includeUsage: true
+                        }
                     });
-                    const text = chatResponse.choices![0].message.content!;
-                    // const chatResponse = await client.chat.completions.create({
-                    //     model: 'gpt-4',
-                    //     messages: [{ role: 'user', content: prompt }],
-                    // });
-                    // const text = chatResponse.choices[0].message.content!;
+                    let text = "";
+                    for await (const chunk of result) {
+                        const content = chunk.choices[0]?.delta?.content;
+                        if (content) {
+                            text += content;
+                            process.stdout.write(content);
+                        }
+                    }
                     const pythonCode = extractPythonCode(text as string);
                     if (!pythonCode) {
                         console.error("No valid Python code found in LLM response.");
-                        notifySSEClients(promptDetails.userId, promptDetails.videoId, { 
-                            status: 'error', 
-                            errormessage: "No valid Python code found in AI response. Please try again with a different prompt." 
+                        notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+                            status: 'error',
+                            errormessage: "No valid Python code found in AI response. Please try again with a different prompt."
                         });
                         return;
                     }
 
                     if (!isCodeSafe(pythonCode)) {
                         console.error("The extracted code contains unsafe patterns. Aborting.");
-                        notifySSEClients(promptDetails.userId, promptDetails.videoId, { 
-                            status: 'error', 
-                            errormessage: "The generated code contains unsafe patterns and cannot be executed." 
+                        notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+                            status: 'error',
+                            errormessage: "The generated code contains unsafe patterns and cannot be executed."
                         });
                         return;
                     }
@@ -158,7 +169,7 @@ export default async function processQueue() {
                                 const videoFileBuffer = await fs.readFile(finalVideoPath);
                                 const { error: videoError } = await supabase.storage
                                     .from('manim-bolt')
-                                    .upload(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0)+1}.mp4`, videoFileBuffer, {
+                                    .upload(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0) + 1}.mp4`, videoFileBuffer, {
                                         contentType: 'video/mp4',
                                         upsert: true
                                     });
@@ -169,7 +180,7 @@ export default async function processQueue() {
                                 // Get a signed URL for the video file (valid for 1 hour)
                                 const { data: signedUrlData, error: signedUrlError } = await supabase.storage
                                     .from('manim-bolt')
-                                    .createSignedUrl(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0)+1}.mp4`,3600);
+                                    .createSignedUrl(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0) + 1}.mp4`, 3600);
 
                                 if (signedUrlError) {
                                     console.error('Error getting signed URL:', signedUrlError);
@@ -243,15 +254,29 @@ export default async function processQueue() {
                                     }, promptDetails.delayBeforeTrials * 1000);
                                 } else {
                                     // No more retry attempts, notify client of failure
-                                    notifySSEClients(promptDetails.userId, promptDetails.videoId, { 
-                                        status: 'error', 
-                                        errormessage: "Failed to generate video after multiple attempts. Please try again with a different prompt." 
+                                    notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+                                        status: 'error',
+                                        errormessage: "Failed to generate video after multiple attempts. Please try again with a different prompt."
                                     });
                                 }
                             }
                         } catch (err) {
                             console.error("Error running Docker:", err);
-                            notifySSEClients(promptDetails.userId, promptDetails.videoId, { status: 'error', errormessage: "Internal server error" })
+                            if (promptDetails.failureAttempts != 0) {
+                                setTimeout(async () => {
+                                    const retryPromptDetails: QueueObject = {
+                                        userId: promptDetails.userId,
+                                        videoId: promptDetails.videoId,
+                                        userPrompt: promptDetails.userPrompt,
+                                        failureAttempts: promptDetails.failureAttempts - 1,
+                                        delayBeforeTrials: promptDetails.delayBeforeTrials + 2,
+                                    };
+                                    await redis.lpush("prompts", retryPromptDetails);
+                                    processQueue()
+                                }, promptDetails.delayBeforeTrials * 1000);
+                            } else {
+                                notifySSEClients(promptDetails.userId, promptDetails.videoId, { status: 'error', errormessage: "Failed to generate video after multiple attempts. Please try again." })
+                            }
                         } finally {
                             // Always clean up directories regardless of success or failure
                             try {

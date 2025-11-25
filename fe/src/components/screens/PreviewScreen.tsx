@@ -77,7 +77,12 @@ export default function PreviewScreen() {
             await axios.post(
                 `${import.meta.env.VITE_SERVER_URL}/api/v1/execute/videoPrompt`,
                 { userId, videoId, userPrompt: prompt, type: false },
-                { withCredentials: true }
+                {
+                    withCredentials: true,
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                    },
+                }
             );
         } catch (error) {
             console.error("Error submitting video prompt:", error);
@@ -100,8 +105,10 @@ export default function PreviewScreen() {
                 eventSourceRef.current.close();
             }
 
+            const token = localStorage.getItem('accessToken');
             const es = new EventSource(
-                `${import.meta.env.VITE_SERVER_URL}/api/v1/execute/job-events/${userId}/${videoId}`
+                `${import.meta.env.VITE_SERVER_URL}/api/v1/execute/job-events/${userId}/${videoId}?token=${token}`,
+                { withCredentials: true }
             );
             eventSourceRef.current = es;
             handleEventSource(es);
@@ -119,13 +126,18 @@ export default function PreviewScreen() {
             const res = await axios.post(`${import.meta.env.VITE_SERVER_URL}/api/v1/chatHistory/getChatHistory`, {
                 userId,
                 videoId,
-            }, { withCredentials: true });
+            }, {
+                withCredentials: true,
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                },
+            });
             const chatHistory = (res.data as { chatHistory: ChatMessage[] }).chatHistory;
             const shouldInit = (res.data as { shouldInitialize: boolean }).shouldInitialize;
-            
+
             setPromptData(chatHistory);
             setType(shouldInit);
-            
+
             if (chatHistory.length > 0) {
                 setSelectedVideoIndex(chatHistory.length - 1);
             }
@@ -159,7 +171,7 @@ export default function PreviewScreen() {
     // Separate useEffect for initial load and cleanup
     useEffect(() => {
         getChatHistory();
-        
+
         return () => {
             if (eventSourceRef.current) {
                 eventSourceRef.current.close();
@@ -327,7 +339,7 @@ export default function PreviewScreen() {
                             {showChat ? 'Hide Chat' : 'Show Chat'}
                         </button>
                     </div>
-                    
+
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center w-full h-full">
                             <div className="w-16 h-16 mb-6">
@@ -382,8 +394,8 @@ export default function PreviewScreen() {
                                             aria-label={`Select animation ${index + 1}`}
                                         >
                                             <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all duration-200 flex items-center justify-center relative ${selectedVideoIndex === index
-                                                    ? 'border-blue-400 bg-blue-500/20 shadow-lg shadow-blue-400/25'
-                                                    : 'border-gray-600 bg-gradient-to-br from-gray-700 to-gray-800 hover:border-blue-400'
+                                                ? 'border-blue-400 bg-blue-500/20 shadow-lg shadow-blue-400/25'
+                                                : 'border-gray-600 bg-gradient-to-br from-gray-700 to-gray-800 hover:border-blue-400'
                                                 }`}>
                                                 <div className="w-full flex h-full bg-black object-cover items-center justify-center">
                                                     <div className="w-6 h-6 lg:w-8 lg:h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -392,8 +404,8 @@ export default function PreviewScreen() {
                                                 </div>
                                             </div>
                                             <span className={`text-xs font-medium transition-colors duration-200 ${selectedVideoIndex === index
-                                                    ? 'text-blue-400 font-semibold'
-                                                    : 'text-gray-400'
+                                                ? 'text-blue-400 font-semibold'
+                                                : 'text-gray-400'
                                                 }`}>
                                                 Animation {index + 1}
                                             </span>
