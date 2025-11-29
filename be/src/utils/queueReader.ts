@@ -59,6 +59,8 @@ async function validateCodeSecurity(code: string): Promise<string | null> {
     });
 }
 
+
+
 // Helper to handle retries with error feedback (Self-Correction)
 async function handleRetry(promptDetails: QueueObject, errorMessage: string) {
     console.error(`Job failed for user ${promptDetails.userId}. Error: ${errorMessage}`);
@@ -214,8 +216,10 @@ export default async function processQueue() {
                                 "bash /script.sh"
                             ].join(" ");
 
+                            let dockerOutput = "";
                             try {
-                                await execAsync(dockerCommand);
+                                const { stdout } = await execAsync(dockerCommand);
+                                dockerOutput = stdout;
                             } catch (dockerError: any) {
                                 // Level 5: Sandboxed Execution Failure -> Self-Correction
                                 const stderr = dockerError.stderr || dockerError.message;
@@ -233,6 +237,41 @@ export default async function processQueue() {
                                 if (stats.size < 1024) { // Less than 1KB is suspicious
                                     throw new Error("Generated video file is too small (likely empty or corrupted).");
                                 }
+
+                                // Level 5: Visual Content Verification (Parse Metrics from Docker Output)
+                                // 1. Parse Duration
+                                const durationMatch = dockerOutput.match(/METRIC_DURATION:([0-9.]+)/);
+                                const totalDuration = durationMatch ? parseFloat(durationMatch[1]) : 0;
+
+                                if (totalDuration <= 0) {
+                                    throw new Error("Could not determine video duration from validation metrics.");
+                                }
+
+                                // 2. Parse Black Frames
+                                const blackStart = dockerOutput.indexOf("METRIC_BLACK_DETECT_START");
+                                const blackEnd = dockerOutput.indexOf("METRIC_BLACK_DETECT_END");
+
+                                if (blackStart !== -1 && blackEnd !== -1) {
+                                    const blackLog = dockerOutput.substring(blackStart, blackEnd);
+                                    const regex = /black_duration:([0-9.]+)/g;
+                                    let totalBlackDuration = 0;
+                                    let match;
+                                    while ((match = regex.exec(blackLog)) !== null) {
+                                        totalBlackDuration += parseFloat(match[1]);
+                                    }
+
+                                    const blackRatio = totalBlackDuration / totalDuration;
+                                    // If more than 90% of the video is black, consider it a failure
+                                    if (blackRatio > 0.9) {
+                                        const visualError = `Visual Validation Failed: Video is ${Math.round(blackRatio * 100)}% black frames. The animation likely failed to render visible objects.`;
+                                        console.error("Visual verification failed:", visualError);
+                                        await handleRetry(promptDetails, visualError);
+                                        return;
+                                    }
+                                } else {
+                                    console.warn("Black frame detection metrics not found in output.");
+                                }
+
                             } catch (fileError: any) {
                                 console.error("Output verification failed:", fileError);
                                 await handleRetry(promptDetails, `Output Verification Failed: ${fileError.message}`);
