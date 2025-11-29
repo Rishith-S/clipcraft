@@ -1,5 +1,5 @@
-export default function getPrompt(userPrompt: string) {
-   return `You are an expert Manim (v0.17+) developer. Create a valid, error-free Python script for an animation.
+export default function getPrompt(userPrompt: string, previousError?: string) {
+   let prompt = `You are an expert Manim (v0.17+) developer. Create a valid, error-free Python script for an animation.
 
 STRICT RULES:
 1. The script MUST define a single class named \`Temp\` that inherits from \`Scene\`.
@@ -14,4 +14,13 @@ Animation Request:
 ${userPrompt}
 
 Output ONLY the Python code block.`;
+
+   if (previousError) {
+      prompt += `\n\nPREVIOUS ERROR (CRITICAL):
+The previous attempt to generate this code failed with the error below. You MUST fix the code to resolve this error.
+Error Message:
+${previousError}`;
+   }
+
+   return prompt;
 }

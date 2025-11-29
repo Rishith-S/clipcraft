@@ -1,8 +1,6 @@
-// import { GoogleGenerativeAI } from "@google/generative-ai";
-// import OpenAI from 'openai';
 import { OpenRouter } from "@openrouter/sdk";
 import { Redis } from "@upstash/redis";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { promisify } from "util";
@@ -28,16 +26,68 @@ function extractPythonCode(llmResponse: string): string | null {
     return match ? match[1].trim() : null;
 }
 
-// Basic code checks
-function isCodeSafe(code: string): boolean {
-    const bannedPatterns = [/import\s+os/, /import\s+sys/, /subprocess/, /open\s*\(/];
-    return !bannedPatterns.some((pattern) => pattern.test(code));
-}
-
 const openRouter = new OpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY ?? "", // Ensure API key is loaded
 });
 
+async function validateCodeSecurity(code: string): Promise<string | null> {
+    return new Promise((resolve) => {
+        const validatorPath = path.join(__dirname, 'security_validator.py');
+
+        const pythonProcess = spawn('python3', [validatorPath]);
+
+        let stderr = '';
+
+        pythonProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        pythonProcess.on('close', (exitCode) => {
+            if (exitCode !== 0) {
+                resolve(stderr.trim() || "Unknown security validation error");
+            } else {
+                resolve(null);
+            }
+        });
+
+        pythonProcess.on('error', (err) => {
+            resolve(`Failed to spawn validator process: ${err.message}`);
+        });
+
+        pythonProcess.stdin.write(code);
+        pythonProcess.stdin.end();
+    });
+}
+
+// Helper to handle retries with error feedback (Self-Correction)
+async function handleRetry(promptDetails: QueueObject, errorMessage: string) {
+    console.error(`Job failed for user ${promptDetails.userId}. Error: ${errorMessage}`);
+
+    if (promptDetails.failureAttempts > 0) {
+        console.log(`Retrying... Attempts left: ${promptDetails.failureAttempts}`);
+
+        // Extract the last 20 lines of the error message to avoid overflowing the context window
+        const truncatedError = errorMessage.split('\n').slice(-20).join('\n');
+
+        const retryPromptDetails: QueueObject = {
+            ...promptDetails,
+            failureAttempts: promptDetails.failureAttempts - 1,
+            delayBeforeTrials: promptDetails.delayBeforeTrials + 2,
+            previousError: truncatedError, // Feed back the error for self-correction
+        };
+
+        setTimeout(async () => {
+            await redis.lpush("prompts", retryPromptDetails);
+            processQueue();
+        }, promptDetails.delayBeforeTrials * 1000);
+    } else {
+        // No more retry attempts, notify client of failure
+        notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+            status: 'error',
+            errormessage: `Failed to generate video after multiple attempts. Last error: ${errorMessage}`
+        });
+    }
+}
 
 export default async function processQueue() {
     if (isProcessing) {
@@ -57,7 +107,9 @@ export default async function processQueue() {
                 // const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
                 // const apiKey = process.env.OPENAI_API_KEY;
                 // const client = new OpenAI({ apiKey: apiKey });
-                let prompt = getPrompt(promptDetails.userPrompt);
+                // const apiKey = process.env.OPENAI_API_KEY;
+                // const client = new OpenAI({ apiKey: apiKey });
+                let prompt = getPrompt(promptDetails.userPrompt, promptDetails.previousError);
                 const video = await prisma.video.findFirst({
                     where: {
                         userId: promptDetails.userId,
@@ -121,12 +173,14 @@ export default async function processQueue() {
                         return;
                     }
 
-                    if (!isCodeSafe(pythonCode)) {
-                        console.error("The extracted code contains unsafe patterns. Aborting.");
-                        notifySSEClients(promptDetails.userId, promptDetails.videoId, {
-                            status: 'error',
-                            errormessage: "The generated code contains unsafe patterns and cannot be executed."
-                        });
+                    // Level 5: Static Analysis (Security & Syntax)
+                    // This runs a local AST parser to catch syntax errors AND banned imports (os, sys, etc.)
+                    // before we ever spin up the Docker container.
+                    const validationError = await validateCodeSecurity(pythonCode);
+                    if (validationError) {
+                        console.error("Static Analysis Failed:", validationError);
+                        // Feed the specific security/syntax error back to the LLM
+                        await handleRetry(promptDetails, `Static Analysis Failed: ${validationError}`);
                         return;
                     }
 
@@ -160,123 +214,107 @@ export default async function processQueue() {
                                 "bash /script.sh"
                             ].join(" ");
 
-                            await execAsync(dockerCommand);
+                            try {
+                                await execAsync(dockerCommand);
+                            } catch (dockerError: any) {
+                                // Level 5: Sandboxed Execution Failure -> Self-Correction
+                                const stderr = dockerError.stderr || dockerError.message;
+                                console.error("Docker execution failed:", stderr);
+                                await handleRetry(promptDetails, `Runtime Error during animation generation:\n${stderr}`);
+                                return; // Stop here, retry triggered
+                            }
+
                             // Check if Temp.mp4 was created
                             const finalVideoPath = path.join(outputDir, "Temp.mp4");
+
+                            // Level 5: Output Verification
                             try {
-                                await fs.access(finalVideoPath);
-                                // Upload output video file
-                                const videoFileBuffer = await fs.readFile(finalVideoPath);
-                                const { error: videoError } = await supabase.storage
-                                    .from('manim-bolt')
-                                    .upload(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0) + 1}.mp4`, videoFileBuffer, {
-                                        contentType: 'video/mp4',
-                                        upsert: true
-                                    });
-                                if (videoError) {
-                                    console.error('Error uploading video file:', videoError);
-                                    throw videoError;
+                                const stats = await fs.stat(finalVideoPath);
+                                if (stats.size < 1024) { // Less than 1KB is suspicious
+                                    throw new Error("Generated video file is too small (likely empty or corrupted).");
                                 }
-                                // Get a signed URL for the video file (valid for 1 hour)
-                                const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-                                    .from('manim-bolt')
-                                    .createSignedUrl(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0) + 1}.mp4`, 3600);
+                            } catch (fileError: any) {
+                                console.error("Output verification failed:", fileError);
+                                await handleRetry(promptDetails, `Output Verification Failed: ${fileError.message}`);
+                                return;
+                            }
 
-                                if (signedUrlError) {
-                                    console.error('Error getting signed URL:', signedUrlError);
-                                    throw signedUrlError;
-                                }
+                            // Upload output video file
+                            const videoFileBuffer = await fs.readFile(finalVideoPath);
+                            const { error: videoError } = await supabase.storage
+                                .from('manim-bolt')
+                                .upload(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0) + 1}.mp4`, videoFileBuffer, {
+                                    contentType: 'video/mp4',
+                                    upsert: true
+                                });
+                            if (videoError) {
+                                console.error('Error uploading video file:', videoError);
+                                throw videoError;
+                            }
+                            // Get a signed URL for the video file (valid for 1 hour)
+                            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                                .from('manim-bolt')
+                                .createSignedUrl(`${promptDetails.userId}/${promptDetails.videoId}/temp-${(video?.prompt?.length || 0) + 1}.mp4`, 3600);
 
-                                if (video == null) {
-                                    await prisma.video.create({
+                            if (signedUrlError) {
+                                console.error('Error getting signed URL:', signedUrlError);
+                                throw signedUrlError;
+                            }
+
+                            if (video == null) {
+                                await prisma.video.create({
+                                    data: {
+                                        userId: promptDetails.userId,
+                                        videoId: parseInt(promptDetails.videoId),
+                                        prompt: [{
+                                            prompt: promptDetails.userPrompt,
+                                            pythonCode: pythonCode,
+                                        }],
+                                    }
+                                })
+                            }
+                            else {
+                                if (video.prompt.length == 0) {
+                                    await prisma.video.update({
+                                        where: {
+                                            id: video.id,
+                                        },
                                         data: {
-                                            userId: promptDetails.userId,
-                                            videoId: parseInt(promptDetails.videoId),
-                                            prompt: [{
-                                                prompt: promptDetails.userPrompt,
-                                                pythonCode: pythonCode,
-                                            }],
+                                            prompt: {
+                                                push: {
+                                                    prompt: promptDetails.userPrompt,
+                                                    pythonCode: pythonCode,
+                                                }
+                                            },
                                         }
                                     })
                                 }
                                 else {
-                                    if (video.prompt.length == 0) {
-                                        await prisma.video.update({
-                                            where: {
-                                                id: video.id,
+                                    await prisma.video.update({
+                                        where: {
+                                            id: video.id,
+                                        },
+                                        data: {
+                                            prompt: {
+                                                push: {
+                                                    prompt: promptDetails.userPrompt,
+                                                    pythonCode: pythonCode,
+                                                }
                                             },
-                                            data: {
-                                                prompt: {
-                                                    push: {
-                                                        prompt: promptDetails.userPrompt,
-                                                        pythonCode: pythonCode,
-                                                    }
-                                                },
-                                            }
-                                        })
-                                    }
-                                    else {
-                                        await prisma.video.update({
-                                            where: {
-                                                id: video.id,
-                                            },
-                                            data: {
-                                                prompt: {
-                                                    push: {
-                                                        prompt: promptDetails.userPrompt,
-                                                        pythonCode: pythonCode,
-                                                    }
-                                                },
-                                            }
-                                        })
-                                    }
-                                }
-
-                                notifySSEClients(promptDetails.userId, promptDetails.videoId, {
-                                    videoUrl: signedUrlData.signedUrl,
-                                    pythonCode,
-                                    status: 'close'
-                                })
-
-                            } catch {
-                                console.error("Temp.mp4 not found after Docker run.");
-                                if (promptDetails.failureAttempts != 0) {
-                                    setTimeout(async () => {
-                                        const retryPromptDetails: QueueObject = {
-                                            userId: promptDetails.userId,
-                                            videoId: promptDetails.videoId,
-                                            userPrompt: promptDetails.userPrompt,
-                                            failureAttempts: promptDetails.failureAttempts - 1,
-                                            delayBeforeTrials: promptDetails.delayBeforeTrials + 2,
-                                        };
-                                        await redis.lpush("prompts", retryPromptDetails);
-                                        processQueue()
-                                    }, promptDetails.delayBeforeTrials * 1000);
-                                } else {
-                                    // No more retry attempts, notify client of failure
-                                    notifySSEClients(promptDetails.userId, promptDetails.videoId, {
-                                        status: 'error',
-                                        errormessage: "Failed to generate video after multiple attempts. Please try again with a different prompt."
-                                    });
+                                        }
+                                    })
                                 }
                             }
-                        } catch (err) {
-                            console.error("Error running Docker:", err);
-                            if (promptDetails.failureAttempts != 0) {
-                                setTimeout(async () => {
-                                    const retryPromptDetails: QueueObject = {
-                                        userId: promptDetails.userId,
-                                        videoId: promptDetails.videoId,
-                                        userPrompt: promptDetails.userPrompt,
-                                        failureAttempts: promptDetails.failureAttempts - 1,
-                                        delayBeforeTrials: promptDetails.delayBeforeTrials + 2,
-                                    };
-                                    await redis.lpush("prompts", retryPromptDetails);
-                                    processQueue()
-                                }, promptDetails.delayBeforeTrials * 1000);
-                            } else {
-                                notifySSEClients(promptDetails.userId, promptDetails.videoId, { status: 'error', errormessage: "Failed to generate video after multiple attempts. Please try again." })
-                            }
+
+                            notifySSEClients(promptDetails.userId, promptDetails.videoId, {
+                                videoUrl: signedUrlData.signedUrl,
+                                pythonCode,
+                                status: 'close'
+                            })
+
+                        } catch (err: any) {
+                            console.error("Unexpected error during processing:", err);
+                            await handleRetry(promptDetails, `Internal System Error: ${err.message}`);
                         } finally {
                             // Always clean up directories regardless of success or failure
                             try {
@@ -296,9 +334,12 @@ export default async function processQueue() {
                     console.error("Error processing item:", error);
                     notifySSEClients(promptDetails.userId, promptDetails.videoId, { status: 'error', errormessage: "Internal server error" })
                 }
+
             } catch (error) {
-                console.error(error);
-                notifySSEClients(promptDetails.userId, promptDetails.videoId, { status: 'error', errormessage: "Internal server error" })
+                console.error("Error processing item:", error);
+                if (promptDetails) {
+                    notifySSEClients(promptDetails.userId, promptDetails.videoId, { status: 'error', errormessage: "Internal server error" })
+                }
             }
         }
     } catch (error) {
