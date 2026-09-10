@@ -1,1 +1,3 @@
 # ClipCraft
+
+<!-- CodeRabbit audit trigger. -->
