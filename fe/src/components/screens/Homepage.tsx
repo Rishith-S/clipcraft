@@ -237,6 +237,7 @@ Use different colors for each box and add simple fade-in animation.`,
                 style={{
                     backgroundImage: `url(${gradientBg})`,
                     backgroundRepeat: 'repeat',
+                    backgroundSize: 'cover',
                     backgroundPosition: 'center top',
                     filter: `brightness(${brightness}%)`
                 }}
