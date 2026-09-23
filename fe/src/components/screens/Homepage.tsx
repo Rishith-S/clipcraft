@@ -27,7 +27,7 @@ const Homepage = () => {
     const [inputValue, setInputValue] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedExample, setSelectedExample] = useState<PromptExample | null>(null);
-    const [brightness, setBrightness] = useState(25);
+    const [brightness, setBrightness] = useState(18);
 
     const promptExamples: PromptExample[] = [
         {
@@ -83,7 +83,7 @@ Use different colors for each box and add simple fade-in animation.`,
     // Brightness animation effect
     useEffect(() => {
         const timer = setTimeout(() => {
-            setBrightness(100);
+            setBrightness(70);
         }, 100);
         return () => clearTimeout(timer);
     }, []);
@@ -233,7 +233,7 @@ Use different colors for each box and add simple fade-in animation.`,
                 }}
             />
             <div
-                className="absolute inset-0 z-10 pointer-events-none transition-all duration-1000 ease-in-out"
+                className="absolute top-0 left-0 right-0 h-[1100px] z-10 pointer-events-none transition-all duration-1000 ease-in-out"
                 style={{
                     backgroundImage: `url("${gradientBg}")`,
                     backgroundRepeat: 'repeat',
