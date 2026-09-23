@@ -234,7 +234,7 @@ Use different colors for each box and add simple fade-in animation.`,
 
                 {/* Input Section */}
                 <div className="w-full max-w-4xl mt-10">
-                    <div className="bg-gray-50/95 rounded-xl p-6">
+                    <div className="bg-gray-50/95 border border-white/10 rounded-xl p-6">
                         <div className="mb-6 text-white">
                             <textarea
                                 name="promptbox"
@@ -261,7 +261,7 @@ Use different colors for each box and add simple fade-in animation.`,
 
                 {/* Prompt Examples Section */}
                 <div className="w-full max-w-4xl mt-6">
-                    <div className="bg-gray-50/95 rounded-xl p-6">
+                    <div className="bg-gray-50/95 border border-white/10 rounded-xl p-6">
                         <h3 className="text-white text-lg font-semibold mb-4">Try these examples:</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {promptExamples.map((example) => (
@@ -281,7 +281,7 @@ Use different colors for each box and add simple fade-in animation.`,
                 {/* User History Section - Only show for authenticated users */}
                 {localStorage.getItem('accessToken') && localStorage.getItem('email') ? (
                     <div className='w-full max-w-4xl mt-10 mb-6'>
-                        <div className="bg-gray-50/95 rounded-xl p-6">
+                        <div className="bg-gray-50/95 border border-white/10 rounded-xl p-6">
                             <div className='flex items-center gap-3 mb-6'>
                                 <div className='font-bold rounded-full h-12 w-12 items-center justify-center flex p-2 text-white bg-orange-600 text-lg'>{localStorage.getItem('name')?.charAt(0).toUpperCase()}</div>
                                 <h2 className='text-white text-xl font-semibold'>My Animations</h2>
@@ -321,7 +321,7 @@ Use different colors for each box and add simple fade-in animation.`,
                     </div>
                 ) : (
                     <div className='w-full max-w-4xl mt-10 mb-6'>
-                        <div className="bg-gray-50/95 rounded-xl p-6">
+                        <div className="bg-gray-50/95 border border-white/10 rounded-xl p-6">
                             <div className='flex items-center gap-3 mb-6'>
                                 <div className='font-bold rounded-full h-12 w-12 items-center justify-center flex p-2 text-white bg-blue-600 text-lg'>👤</div>
                                 <h2 className='text-white text-xl font-semibold'>Get Started</h2>
