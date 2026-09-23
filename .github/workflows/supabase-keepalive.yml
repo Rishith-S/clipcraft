@@ -15,7 +15,15 @@ jobs:
       - name: Run SELECT 1 against Supabase
         run: |
           pip install -q psycopg2-binary
-          python3 -c "import psycopg2, os; c = psycopg2.connect(os.environ['DIRECT_URL']); c.cursor().execute('SELECT 1'); print('SUPABASE_OK'); c.close()"
+          python3 -c "
+          import os, psycopg2
+          from urllib.parse import urlparse, unquote
+          u = urlparse(os.environ['DIRECT_URL'])
+          c = psycopg2.connect(host=u.hostname, port=u.port or 5432, dbname=u.path.lstrip('/') or 'postgres', user=unquote(u.username or ''), password=unquote(u.password or ''))
+          c.cursor().execute('SELECT 1')
+          print('SUPABASE_OK')
+          c.close()
+          "
         env:
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
 
