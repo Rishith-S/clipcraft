@@ -25,9 +25,9 @@ interface PromptExample {
 
 const Homepage = () => {
     const [inputValue, setInputValue] = useState('');
-    const [brightness, setBrightness] = useState(25);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedExample, setSelectedExample] = useState<PromptExample | null>(null);
+    const [brightness, setBrightness] = useState(25);
 
     const promptExamples: PromptExample[] = [
         {
@@ -223,19 +223,19 @@ Use different colors for each box and add simple fade-in animation.`,
     }
 
     return (
-        <div className='w-screen min-h-full z-10 overflow-y-auto bg-gray-50'>
+        <div className='relative w-screen min-h-full z-10 overflow-y-auto bg-gray-50'>
             <div
-                className="absolute h-[100%] w-[100%] z-20 pointer-events-none"
+                className="absolute inset-0 z-20 pointer-events-none"
                 style={{
-                    backgroundImage: `url(${noiseBg})`,
+                    backgroundImage: `url("${noiseBg}")`,
                     backgroundRepeat: 'repeat',
                     opacity: 0.35
                 }}
             />
             <div
-                className="absolute left-1/2 h-[100%] w-full -translate-x-1/2 z-10 pointer-events-none transition-all duration-1000 ease-in-out"
+                className="absolute inset-0 z-10 pointer-events-none transition-all duration-1000 ease-in-out"
                 style={{
-                    backgroundImage: `url(${gradientBg})`,
+                    backgroundImage: `url("${gradientBg}")`,
                     backgroundRepeat: 'repeat',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center top',
