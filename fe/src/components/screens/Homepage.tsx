@@ -66,11 +66,11 @@ Use different colors for each box and add simple fade-in animation.`,
     ];
 
     const texts = [
-        "Create a math animation",
-        "Show me a physics concept",
-        "Visualize an algorithm",
-        "Explain a scientific process",
-        "Generate an educational video"
+        "create a math animation",
+        "show a physics concept",
+        "visualize an algorithm",
+        "explain a scientific process",
+        "generate an educational video"
     ];
     const navigate = useNavigate();
     const [currentTextIndex, setCurrentTextIndex] = useState(0);
@@ -239,7 +239,7 @@ Use different colors for each box and add simple fade-in animation.`,
                             <textarea
                                 name="promptbox"
                                 id="prompt"
-                                placeholder={`Ask ClipCraft to create a ${currentText}`}
+                                placeholder={`Ask ClipCraft to ${currentText}`}
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 className="text-white resize-none w-full bg-transparent text-lg placeholder-gray-400 focus:outline-none py-2 min-h-[100px]"
