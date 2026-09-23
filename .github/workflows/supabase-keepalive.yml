@@ -1,6 +1,7 @@
-# Keeps the free Supabase project from pausing (pauses after 7 days idle).
-# Runs one real query a day. Needs repo secret SUPABASE_DIRECT_URL (= DIRECT_URL).
-name: supabase-keepalive
+# Keeps the free tiers warm: Supabase pauses after 7 idle days, Upstash gets a
+# daily self-expiring ping for good measure. Needs repo secrets:
+# SUPABASE_DIRECT_URL (= DIRECT_URL), UPSTASH_REST_URL, UPSTASH_REST_TOKEN.
+name: keepalive
 
 on:
   schedule:
@@ -17,3 +18,10 @@ jobs:
           python3 -c "import psycopg2, os; c = psycopg2.connect(os.environ['DIRECT_URL']); c.cursor().execute('SELECT 1'); print('SUPABASE_OK'); c.close()"
         env:
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+
+      - name: Ping Upstash (self-expiring key)
+        run: |
+          curl -s -H "Authorization: Bearer $UPSTASH_TOKEN" "$UPSTASH_URL/set/keepalive_probe/$(date +%F) EX 86400" && echo " <- UPSTASH_OK"
+        env:
+          UPSTASH_URL: ${{ secrets.UPSTASH_REST_URL }}
+          UPSTASH_TOKEN: ${{ secrets.UPSTASH_REST_TOKEN }}
