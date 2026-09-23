@@ -206,20 +206,29 @@ Use different colors for each box and add simple fade-in animation.`,
 
     if (loading) {
         return (
-            <div className='w-screen min-h-full z-10 overflow-y-auto bg-gray-50'>
+            <div className='w-screen min-h-full z-10 overflow-y-auto bg-black'>
                 <Loader />
             </div>
         )
     }
 
     return (
-        <div className='relative w-screen min-h-full z-10 overflow-y-auto bg-gray-50'>
+        <div className='relative w-screen min-h-full z-10 overflow-y-auto bg-black'>
             <div
                 className="absolute inset-0 z-20 pointer-events-none"
                 style={{
                     backgroundImage: `url("${noiseBg}")`,
                     backgroundRepeat: 'repeat',
                     opacity: 0.2
+                }}
+            />
+            <div
+                className="fixed top-0 left-0 right-0 h-[750px] pointer-events-none"
+                style={{
+                    backgroundImage:
+                        'radial-gradient(640px 420px at 18% 0%, rgba(78,147,255,0.20), transparent 70%),' +
+                        'radial-gradient(760px 480px at 85% 8%, rgba(249,115,22,0.13), transparent 70%),' +
+                        'radial-gradient(520px 380px at 65% 0%, rgba(236,72,153,0.10), transparent 70%)'
                 }}
             />
             <main className="relative z-30 flex flex-col items-center justify-center px-6">
