@@ -30,7 +30,14 @@ jobs:
       - name: Ping Upstash (self-expiring key)
         run: |
           # strip accidental quotes/whitespace from the pasted secret, fail loudly if unset
-          UPSTASH_URL=$(printf '%s' "$UPSTASH_URL" | tr -d ' \t\r\n"')
+          # + normalize unicode lookalikes (fancy hyphens/spaces from copy-paste) to ASCII
+          UPSTASH_URL=$(python3 -c "
+          import os, re
+          u = os.environ['UPSTASH_URL']
+          u = re.sub(r'[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D\u00AD]', '-', u)
+          u = re.sub(r'[^A-Za-z0-9:/?#\[\]@!\$&()*+,;=%._~-]', '', u)
+          print(u.strip().strip(chr(34)))
+          ")
           : "${UPSTASH_URL:?UPSTASH_REST_URL secret is missing or empty}"
           : "${UPSTASH_TOKEN:?UPSTASH_REST_TOKEN secret is missing or empty}"
           # safe diagnostic: length + scheme only, value stays masked
