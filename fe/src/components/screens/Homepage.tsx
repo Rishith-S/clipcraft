@@ -9,7 +9,6 @@ import exampleVideo1 from '../../assets/videos/prompt-example-1.mp4';
 import exampleVideo2 from '../../assets/videos/prompt-example-2.mp4';
 import exampleVideo3 from '../../assets/videos/prompt-example-3.mp4';
 import noiseBg from '../../assets/noise.png';
-import gradientBg from '../../assets/gradient-optimized.svg';
 
 interface Video {
     videoId: number;
@@ -27,7 +26,6 @@ const Homepage = () => {
     const [inputValue, setInputValue] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedExample, setSelectedExample] = useState<PromptExample | null>(null);
-    const [brightness, setBrightness] = useState(18);
 
     const promptExamples: PromptExample[] = [
         {
@@ -79,14 +77,6 @@ Use different colors for each box and add simple fade-in animation.`,
     const [currentText, setCurrentText] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [loading, setLoading] = useState(false);
-
-    // Brightness animation effect
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setBrightness(70);
-        }, 100);
-        return () => clearTimeout(timer);
-    }, []);
 
     const [userHistory, setUserHistory] = useState<Video[]>([]);
 
@@ -229,17 +219,7 @@ Use different colors for each box and add simple fade-in animation.`,
                 style={{
                     backgroundImage: `url("${noiseBg}")`,
                     backgroundRepeat: 'repeat',
-                    opacity: 0.35
-                }}
-            />
-            <div
-                className="absolute top-0 left-0 right-0 h-[1100px] z-10 pointer-events-none transition-all duration-1000 ease-in-out"
-                style={{
-                    backgroundImage: `url("${gradientBg}")`,
-                    backgroundRepeat: 'repeat',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center top',
-                    filter: `brightness(${brightness}%)`
+                    opacity: 0.2
                 }}
             />
             <main className="relative z-30 flex flex-col items-center justify-center px-6">
