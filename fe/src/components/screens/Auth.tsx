@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router';
 import axios from 'axios';
 import type { UserDetails } from '../utils/Callback';
 import { Turnstile } from '@marsidev/react-turnstile';
+import AuthArt from '../../assets/image.webp';
 
 export default function Auth() {
     const {type} = useParams()
@@ -216,7 +217,7 @@ export default function Auth() {
             </div>
 
             <div className="w-0 md:w-1/2 m-6 relative hidden md:flex items-center justify-center">
-                <div className="bg-[url('/src/assets/image.webp')] rounded-lg w-full h-full bg-cover absolute" />
+                <div className="rounded-lg w-full h-full bg-cover absolute" style={{ backgroundImage: `url(${AuthArt})` }} />
                 <div className="absolute w-full px-24">
                     <div className="bg-white rounded-2xl flex flex-row justify-between items-center px-6 py-4">
                         <p className="text-gray-800 text-cente text-md">

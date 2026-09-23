@@ -6,7 +6,7 @@
 
 @font-face {
   font-family: playful;
-  src: url('../../fe/src/assets/Audiowide-Regular.ttf');
+  src: url('./assets/Audiowide-Regular.ttf');
   font-weight: normal;
   font-style: normal;
 }

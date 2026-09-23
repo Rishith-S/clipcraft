@@ -5,6 +5,11 @@ import axios from 'axios';
 import Loader from '../utils/Loader';
 import Modal from '../utils/Modal';
 import { toast } from 'react-hot-toast';
+import exampleVideo1 from '../../assets/videos/prompt-example-1.mp4';
+import exampleVideo2 from '../../assets/videos/prompt-example-2.mp4';
+import exampleVideo3 from '../../assets/videos/prompt-example-3.mp4';
+import noiseBg from '../../assets/noise.png';
+import gradientBg from '../../assets/gradient-optimized.svg';
 
 interface Video {
     videoId: number;
@@ -30,7 +35,7 @@ const Homepage = () => {
             title: "Prompt Example 1",
             prompt: `Create a Manim animation that shows a number line from -5 to 5.
 Animate a dot moving smoothly from -3 to 4 along the number line.`,
-            videoUrl: "/src/assets/videos/prompt-example-1.mp4",
+            videoUrl: exampleVideo1,
         },
         {
             id: 2,
@@ -43,7 +48,7 @@ Animate a dot moving smoothly from -3 to 4 along the number line.`,
         
         Bottom box: Data Layer
         Stack them vertically, center aligned, with arrows pointing downward from each to the next.`,
-            videoUrl: "/src/assets/videos/prompt-example-2.mp4",
+            videoUrl: exampleVideo2,
         },
         {
             id: 3,
@@ -58,7 +63,7 @@ Middle: Backend
 Right: Database
 Connect the boxes with arrows from left to right.
 Use different colors for each box and add simple fade-in animation.`,
-            videoUrl: "/src/assets/videos/prompt-example-3.mp4",
+            videoUrl: exampleVideo3,
         },
     ];
 
@@ -222,7 +227,7 @@ Use different colors for each box and add simple fade-in animation.`,
             <div
                 className="absolute h-[100%] w-[100%] z-20 pointer-events-none"
                 style={{
-                    backgroundImage: 'url("/src/assets/noise.png")',
+                    backgroundImage: `url(${noiseBg})`,
                     backgroundRepeat: 'repeat',
                     opacity: 0.35
                 }}
@@ -230,7 +235,7 @@ Use different colors for each box and add simple fade-in animation.`,
             <div
                 className="absolute left-1/2 h-[100%] w-full -translate-x-1/2 z-10 pointer-events-none transition-all duration-1000 ease-in-out"
                 style={{
-                    backgroundImage: 'url("/src/assets/gradient-optimized.svg")',
+                    backgroundImage: `url(${gradientBg})`,
                     backgroundRepeat: 'repeat',
                     backgroundPosition: 'center top',
                     filter: `brightness(${brightness}%)`
