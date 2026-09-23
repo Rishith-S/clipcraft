@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+manim_input
+manim_output
+generated
+.DS_Store

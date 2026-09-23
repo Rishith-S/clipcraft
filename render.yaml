@@ -1,0 +1,54 @@
+# Render blueprint: ClipCraft backend (API + manim worker, single free Docker service).
+# DB (Supabase Postgres) and queue (Upstash Redis) stay on their free tiers.
+# Apply via Render dashboard -> Blueprints, then fill in the `sync: false` values.
+services:
+  - type: web
+    name: clipcraft-be
+    runtime: docker
+    dockerfilePath: ./be/Dockerfile
+    dockerContext: ./be
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: MANIM_LOCAL
+        value: 1
+      - key: CLIENT_URL
+        sync: false # exact Vercel URL, no trailing slash
+      - key: DATABASE_URL
+        sync: false # Supabase pooler connection string
+      - key: DIRECT_URL
+        sync: false # Supabase direct connection (migrations)
+      - key: TOKEN_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: REDIRECT_URL_LOGIN
+        sync: false
+      - key: REDIRECT_URL_SIGNUP
+        sync: false
+      - key: AuthUrl
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_REDIRECT_URL_LOGIN
+        sync: false
+      - key: GITHUB_REDIRECT_URL_SIGNUP
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false

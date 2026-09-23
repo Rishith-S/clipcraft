@@ -202,30 +202,39 @@ export default async function processQueue() {
                         await fs.writeFile(inputFilePath, pythonCode);
 
                         try {
-                            // Pull the image if it doesn't exist
-                            await execAsync("docker pull manimcommunity/manim");
-
-                            const dockerCommand = [
-                                "docker run --rm -i",
-                                `-v "${inputDir}:/manim_input:ro"`,
-                                `-v "${outputDir}:/manim_output"`,
-                                `-v "${process.cwd()}/script.sh:/script.sh:ro"`,
-                                "--network=none",
-                                "--memory=512m --cpus=1",
-                                "manimcommunity/manim",
-                                "bash /script.sh"
-                            ].join(" ");
-
                             let dockerOutput = "";
-                            try {
-                                const { stdout } = await execAsync(dockerCommand);
+                            if (process.env.MANIM_LOCAL === "1") {
+                                // No Docker daemon (e.g. Render free tier): run manim directly on the host.
+                                // The worker loop is single-threaded, so the shared staging dirs are safe.
+                                await fs.copyFile(inputFilePath, "/manim_input/temp.py");
+                                const { stdout } = await execAsync(`bash "${path.join(process.cwd(), "script.sh")}"`, { timeout: 10 * 60 * 1000 });
                                 dockerOutput = stdout;
-                            } catch (dockerError: any) {
-                                // Level 5: Sandboxed Execution Failure -> Self-Correction
-                                const stderr = dockerError.stderr || dockerError.message;
-                                console.error("Docker execution failed:", stderr);
-                                await handleRetry(promptDetails, `Runtime Error during animation generation:\n${stderr}`);
-                                return; // Stop here, retry triggered
+                                await fs.copyFile("/manim_output/Temp.mp4", path.join(outputDir, "Temp.mp4"));
+                            } else {
+                                // Pull the image if it doesn't exist
+                                await execAsync("docker pull manimcommunity/manim");
+
+                                const dockerCommand = [
+                                    "docker run --rm -i",
+                                    `-v "${inputDir}:/manim_input:ro"`,
+                                    `-v "${outputDir}:/manim_output"`,
+                                    `-v "${process.cwd()}/script.sh:/script.sh:ro"`,
+                                    "--network=none",
+                                    "--memory=512m --cpus=1",
+                                    "manimcommunity/manim",
+                                    "bash /script.sh"
+                                ].join(" ");
+
+                                try {
+                                    const { stdout } = await execAsync(dockerCommand);
+                                    dockerOutput = stdout;
+                                } catch (dockerError: any) {
+                                    // Level 5: Sandboxed Execution Failure -> Self-Correction
+                                    const stderr = dockerError.stderr || dockerError.message;
+                                    console.error("Docker execution failed:", stderr);
+                                    await handleRetry(promptDetails, `Runtime Error during animation generation:\n${stderr}`);
+                                    return; // Stop here, retry triggered
+                                }
                             }
 
                             // Check if Temp.mp4 was created
@@ -276,6 +285,22 @@ export default async function processQueue() {
                                 console.error("Output verification failed:", fileError);
                                 await handleRetry(promptDetails, `Output Verification Failed: ${fileError.message}`);
                                 return;
+                            }
+
+                            // Ensure bucket exists
+                            const { error: bucketError } = await supabase.storage.getBucket('manim-bolt');
+                            if (bucketError) {
+                                console.log("Bucket 'manim-bolt' not found or inaccessible. Attempting to create...");
+                                const { error: createError } = await supabase.storage.createBucket('manim-bolt', {
+                                    public: false,
+                                    fileSizeLimit: 52428800, // 50MB
+                                    allowedMimeTypes: ['video/mp4']
+                                });
+                                if (createError) {
+                                    console.error("Failed to automatically create bucket 'manim-bolt'. You must create this bucket manually in your Supabase dashboard.", createError);
+                                } else {
+                                    console.log("Successfully created bucket 'manim-bolt'");
+                                }
                             }
 
                             // Upload output video file

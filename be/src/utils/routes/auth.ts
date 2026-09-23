@@ -337,10 +337,11 @@ authRouter.post('/login/email-and-password', async (req, res) => {
             },
             process.env.TOKEN_SECRET!, ({ expiresIn: '3d' })
           )
+          // cross-site (Vercel -> Render): must be none/secure; localhost is a secure context so local dev still works
           res.cookie('jwt', refreshToken, {
             httpOnly: true,
-            sameSite: 'lax',
-            secure: false,
+            sameSite: 'none',
+            secure: true,
             maxAge: 3 * 24 * 60 * 60 * 1000
           });
           res.status(200).send({
@@ -420,10 +421,11 @@ authRouter.post('/signup/email-and-password', async (req, res) => {
         },
         process.env.TOKEN_SECRET!, ({ expiresIn: '3d' })
       )
+      // cross-site (Vercel -> Render): must be none/secure; localhost is a secure context so local dev still works
       res.cookie('jwt', refreshToken, {
         httpOnly: true,
-        sameSite: 'lax',
-        secure: false,
+        sameSite: 'none',
+        secure: true,
         maxAge: 3 * 24 * 60 * 60 * 1000
       });
       res.status(200).send({
