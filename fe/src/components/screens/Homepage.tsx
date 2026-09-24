@@ -30,37 +30,23 @@ const Homepage = () => {
     const promptExamples: PromptExample[] = [
         {
             id: 1,
-            title: "Prompt Example 1",
-            prompt: `Create a Manim animation that shows a number line from -5 to 5.
-Animate a dot moving smoothly from -3 to 4 along the number line.`,
+            title: "Neural Network Forward Pass",
+            prompt: `Create a Manim animation of a neural network with 4 input neurons, 3 hidden neurons, and 2 output neurons.
+Show all connections, then animate a glowing pulse traveling from input to output.`,
             videoUrl: exampleVideo1,
         },
         {
             id: 2,
-            title: "Prompt Example 2",
-            prompt: `Create a Manim diagram showing the three-layer software architecture:
-        
-        Top box: Presentation Layer
-        
-        Middle box: Business Logic Layer
-        
-        Bottom box: Data Layer
-        Stack them vertically, center aligned, with arrows pointing downward from each to the next.`,
+            title: "Sine Wave Tracer",
+            prompt: `Create a Manim animation that draws the sine curve y = sin(x) from 0 to 2*pi.
+Animate a glowing dot tracing the curve as it is drawn, with labeled axes.`,
             videoUrl: exampleVideo2,
         },
         {
             id: 3,
-            title: "Prompt Example 3",
-            prompt: `Create a Manim animation with three labeled boxes arranged horizontally.
-Label the boxes:
-
-Left: Frontend
-
-Middle: Backend
-
-Right: Database
-Connect the boxes with arrows from left to right.
-Use different colors for each box and add simple fade-in animation.`,
+            title: "Bubble Sort Visualization",
+            prompt: `Create a Manim animation of bubble sort on 10 bars with a color gradient.
+Animate every swap and highlight sorted bars in green as they lock into place.`,
             videoUrl: exampleVideo3,
         },
     ];
